@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="et"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Broneeringute haldus</title>
+<style>body{font:16px system-ui,sans-serif;margin:0;padding:20px;background:#f4f8f4;color:#1c2a22}table{border-collapse:collapse;width:100%;background:#fff}th,td{padding:9px 10px;border-bottom:1px solid #dbe6dd;text-align:left;vertical-align:top;font-size:14px}
+button,select{padding:6px 10px;border-radius:8px;border:1px solid #2f7d4f;background:#2f7d4f;color:#fff;cursor:pointer}button.o{background:#fff;color:#1f5c3a}.s{font-weight:700;padding:2px 8px;border-radius:999px}
+.ootel{background:#fef3c7}.makstud{background:#d1fae5}.aegunud,.tuhistatud{background:#e5e7eb}.wrap{overflow-x:auto}#msg{color:#8a1c1c}</style></head><body>
+<h1>Broneeringud</h1><p><select id="flt"><option value="">Kõik</option><option>ootel</option><option>makstud</option><option>aegunud</option><option>tuhistatud</option></select> <button class="o" id="rf">Värskenda</button> <span id="msg"></span></p>
+<div class="wrap"><table><thead><tr><th>Boks</th><th>Klient</th><th>Periood</th><th>Staatus</th><th>Tegevus</th></tr></thead><tbody id="tb"></tbody></table></div>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TN={tava:'Tava',xl:'XL',riiul:'Riiul',riiul3:'3 riiulit'};
+let key=sessionStorage.getItem('k')||'',rows=[];const $=id=>document.getElementById(id);
+const fd=d=>new Date(d).toLocaleDateString('et-EE'),ft=d=>new Date(d).toLocaleString('et-EE',{dateStyle:'short',timeStyle:'short'});
+async function api(o){const r=await fetch('/api/admin',{...o,headers:{'x-admin-key':key,'content-type':'application/json'}});const d=await r.json();if(!r.ok)throw new Error(d.error);return d}
+async function load(){try{if(!key){key=prompt('Admin parool')||'';}rows=await api({});sessionStorage.setItem('k',key);$('msg').textContent='';draw()}catch(e){$('msg').textContent=e.message;if(e.message==='Vale parool'){key='';sessionStorage.removeItem('k')}}}
+function draw(){const f=$('flt').value;$('tb').innerHTML=rows.filter(r=>!f||r.status===f).map(r=>`<tr><td>#${esc(r.boxes.number)}<br>${esc(TN[r.boxes.type]||r.boxes.type)}</td>
+<td>${esc(r.name)}<br>${esc(r.phone)}<br>${esc(r.email)}${r.note?'<br><i>'+esc(r.note)+'</i>':''}</td><td>${fd(r.start_date)} – ${fd(r.end_date)}<br>${esc(r.price_eur)} €</td>
+<td><span class="s ${esc(r.status)}">${esc(r.status)}</span>${r.status==='ootel'?'<br>kuni '+ft(r.hold_until):''}${r.pay_method?'<br>'+esc(r.pay_method):''}</td>
+<td>${r.status==='ootel'?`<button data-i="${esc(r.id)}" data-a="paid" data-m="sularaha">Makstud (sularaha)</button> <button data-i="${esc(r.id)}" data-a="paid" data-m="arve">Makstud (arve)</button> <button class="o" data-i="${esc(r.id)}" data-a="release">Vabasta</button>`:''}
+${r.status==='makstud'?`<button class="o" data-i="${esc(r.id)}" data-a="release">Tühista</button>`:''}${['aegunud','tuhistatud'].includes(r.status)?`<button data-i="${esc(r.id)}" data-a="reopen">Ava uuesti (24 h)</button>`:''}</td></tr>`).join('')||'<tr><td colspan=5>Broneeringuid pole.</td></tr>'}
+$('tb').onclick=async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.a==='release'&&!confirm('Kindel, et vabastad boksi?'))return;
+try{await api({method:'POST',body:JSON.stringify({id:b.dataset.i,action:b.dataset.a,method:b.dataset.m})});load()}catch(x){$('msg').textContent=x.message}};
+$('flt').onchange=draw;$('rf').onclick=load;load();
+</script></body></html>
